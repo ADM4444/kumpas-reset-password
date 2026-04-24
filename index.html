@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reset Password - Kumpas</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: #2563eb;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border 0.2s;
+            margin-bottom: 20px;
+        }
+
+        input:focus { border-color: #2563eb; }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #93c5fd; cursor: not-allowed; }
+
+        .status {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .status.error { color: #dc2626; }
+        .status.success { color: #16a34a; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">Kumpas</div>
+        <div class="subtitle">Enter your new password below</div>
+
+        <label for="password">New Password</label>
+        <input type="password" id="password" placeholder="Enter new password" />
+
+        <label for="confirm">Confirm Password</label>
+        <input type="password" id="confirm" placeholder="Confirm new password" />
+
+        <button id="resetBtn" onclick="resetPassword()">Reset Password</button>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        // ── Parse access_token from the URL hash ──────────────────
+        function getAccessToken() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            return params.get('access_token');
+        }
+
+        // ── Show status message ───────────────────────────────────
+        function setStatus(message, type) {
+            const el = document.getElementById('status');
+            el.textContent = message;
+            el.className = 'status ' + type;
+        }
+
+        // ── Main reset function ───────────────────────────────────
+        async function resetPassword() {
+            const password = document.getElementById('password').value;
+            const confirm  = document.getElementById('confirm').value;
+            const btn      = document.getElementById('resetBtn');
+            const token    = getAccessToken();
+
+            // Validations
+            if (!token) {
+                setStatus('Invalid or expired reset link. Please request a new one.', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                setStatus('Password must be at least 6 characters.', 'error');
+                return;
+            }
+
+            if (password !== confirm) {
+                setStatus('Passwords do not match.', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Resetting...';
+            setStatus('', '');
+
+            try {
+                // ── Call Supabase REST API directly ───────────────
+                const response = await fetch(
+                    'https://tzeudbyojqpzfkbbwwcs.supabase.co/auth/v1/user',
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6ZXVkYnlvanFwemZrYmJ3d2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NzcwNDgsImV4cCI6MjA4OTgzNzA0OH0.iFwDnWKaYD31cHu06egAzL8YMoG4EIanPrHXYh6gqlI', // ← REPLACE THIS
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify({ password: password })
+                    }
+                );
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    setStatus('Password reset successful! You can now log in to Kumpas.', 'success');
+                    btn.textContent = 'Done';
+                    document.getElementById('password').value = '';
+                    document.getElementById('confirm').value = '';
+                } else {
+                    setStatus(data.msg || data.message || 'Reset failed. Please try again.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Reset Password';
+                }
+            } catch (err) {
+                setStatus('Network error. Please check your connection.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Reset Password';
+            }
+        }
+    </script>
+</body>
+</html>
